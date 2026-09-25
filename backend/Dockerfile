@@ -30,8 +30,8 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY prisma ./prisma
-COPY prisma.config.ts ./
 RUN npx prisma generate
+COPY prisma.config.ts ./
 COPY --from=builder /app/dist ./dist
 
 # Render (and most hosts) inject PORT. The app reads process.env.PORT.

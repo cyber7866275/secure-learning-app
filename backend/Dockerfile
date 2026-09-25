@@ -38,4 +38,4 @@ EXPOSE 3000
 
 # Run pending migrations, then start. Seeding is a one-off manual step
 # (see README) so it is intentionally NOT run here.
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]
+CMD ["sh", "-c", "npx -y prisma@7.10.0 db push --accept-data-loss && node dist/main"]

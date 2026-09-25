@@ -5,7 +5,7 @@
 FROM node:20-bookworm-slim AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    openssl ca-certificates \
+    openssl ca-certificates python3 make g++ \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -21,7 +21,7 @@ RUN npm run build
 FROM node:20-bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    openssl ca-certificates ffmpeg \
+    openssl ca-certificates ffmpeg python3 make g++ \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

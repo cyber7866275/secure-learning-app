@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Solid colors only (no gradients anywhere in the app). -->
+    <color name="splash_bg">#0F172A</color>
+    <color name="brand_teal">#0F766E</color>
+    <color name="ic_launcher_background">#0F172A</color>
+</resources>

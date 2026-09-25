@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Env files (NEVER commit real secrets; .env.example is fine)
+.env
+.env.local
+.env.*.local
+
+# Android
+*.apk
+*.aab
+local.properties
+.gradle/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Logs & OS
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Misc
+.vscode/
+.idea/
+coverage/

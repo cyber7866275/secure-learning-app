@@ -1,0 +1,14 @@
+# Copy to local.properties and set your backend URL. NOT committed.
+# For the Android emulator talking to a backend on your dev machine:
+api.baseUrl=http://10.0.2.2:3000
+# For a physical device on the same Wi-Fi (use your machine's LAN IP, https recommended):
+# api.baseUrl=https://192.168.1.10:3000
+
+# ---- Certificate pinning (Stage 7, release builds only) -----------------------
+# Comma-separated SHA-256 pins for the API host, e.g.:
+# api.certPins=sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=,sha256/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=
+# Extract with:
+#   openssl s_client -connect YOUR_HOST:443 -servername YOUR_HOST </dev/null 2>/dev/null \
+#     | openssl x509 -outform DER | openssl dgst -sha256 -binary | openssl enc -base64
+# Leave empty to disable pinning. Debug builds never pin (local dev servers).
+# Include a backup pin (next cert's key) so rotation doesn't brick the app.

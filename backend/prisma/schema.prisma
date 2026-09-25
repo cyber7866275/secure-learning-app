@@ -1,0 +1,306 @@
+// =============================================================================
+// Secure Learning App — Stage 1 data model
+// Covers the full domain from ARCHITECTURE.md §3 so later stages only add
+// migrations, never rewrites. Stage 1 code only uses: User, Admin, Device,
+// RefreshToken, LoginAttempt, SecurityAlert.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------- enums ----
+
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+}
+
+enum AdminRole {
+  OWNER
+  SUPPORT
+}
+
+enum CategoryType {
+  PDF
+  VIDEO
+  BOTH
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  HIDDEN
+}
+
+// Stage 5 hook: set by the HLS/transcode worker. Stage 2 admin upload sets
+// PENDING; videos are only streamable once the worker marks them READY.
+enum ProcessingStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum PermissionTarget {
+  PDF
+  VIDEO
+  CATEGORY
+}
+
+enum AlertType {
+  REFRESH_REUSE // rotated refresh token presented again -> possible theft
+  DENIED_BURST
+  MULTI_IP
+  ROOT_DETECTED
+  INTEGRITY_FAILED // Play Integrity verdict failed (log/block mode)
+  DEVICE_LIMIT_EXCEEDED
+  OTHER
+}
+
+// ---------------------------------------------------------------- models ----
+
+model User {
+  id              String     @id @default(cuid())
+  name            String
+  email           String?    @unique
+  phone           String     @unique
+  passwordHash    String?
+  status          UserStatus @default(ACTIVE)
+  maxDevices      Int        @default(1)
+  accessExpiresAt DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  devices        Device[]
+  refreshTokens  RefreshToken[]
+  permissions    Permission[]
+  contentEvents  ContentEvent[]
+  loginAttempts  LoginAttempt[]
+  securityAlerts SecurityAlert[]
+  notifications  Notification[]
+}
+
+model Admin {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  role         AdminRole @default(SUPPORT)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Device {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fingerprint String
+  name        String?
+  ip          String?
+  lastSeenAt  DateTime @default(now())
+  revoked     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  refreshTokens RefreshToken[]
+  contentEvents ContentEvent[]
+
+  @@unique([userId, fingerprint])
+  @@index([userId])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId  String?
+  device    Device?  @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  tokenHash String   @unique // SHA-256 of the opaque token; raw value never stored
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Category {
+  id        String       @id @default(cuid())
+  name      String
+  type      CategoryType @default(BOTH)
+  sortOrder Int          @default(0)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  subjects Subject[]
+  pdfs     Pdf[]
+  videos   Video[]
+}
+
+model Subject {
+  id         String   @id @default(cuid())
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  name       String
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  chapters Chapter[]
+  pdfs     Pdf[]
+  videos   Video[]
+
+  @@index([categoryId])
+}
+
+model Chapter {
+  id        String   @id @default(cuid())
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  name      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  pdfs   Pdf[]
+  videos Video[]
+
+  @@index([subjectId])
+}
+
+model Pdf {
+  id          String        @id @default(cuid())
+  title       String
+  categoryId  String?
+  category    Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  subjectId   String?
+  subject     Subject?      @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  chapterId   String?
+  chapter     Chapter?      @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  storageKey  String // private object-storage key; never exposed directly (Stage 2: signed URLs)
+  pendingStorageKey String? // staged replacement upload; swapped on /replace/confirm
+  fileSize    Int?
+  pageCount   Int?
+  status      ContentStatus @default(DRAFT)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([categoryId])
+  @@index([status])
+}
+
+model Video {
+  id           String        @id @default(cuid())
+  title        String
+  categoryId   String?
+  category     Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  subjectId    String?
+  subject      Subject?      @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  chapterId    String?
+  chapter      Chapter?      @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  storageKey   String // source file key in private storage; HLS manifest key after Stage 5 transcode
+  pendingStorageKey String? // staged replacement upload; swapped on /replace/confirm
+  drmKeyId     String?
+  durationSec  Int?
+  thumbnailKey String?
+  status       ContentStatus @default(DRAFT)
+  // STAGE 5: the transcode worker picks up PENDING videos, produces HLS
+  // (+ AES-128) and flips this to READY. Access endpoints require READY.
+  // FAILED keeps the human-readable reason in processingError for the admin.
+  processingStatus ProcessingStatus @default(PENDING)
+  processingError  String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([categoryId])
+  @@index([status])
+}
+
+model Permission {
+  // Default-deny: no row here means NO access. Stage 2 enforces this per request.
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  target    PermissionTarget
+  targetId  String // pdf / video / category id
+  granted   Boolean          @default(true)
+  expiresAt DateTime?
+  createdAt DateTime         @default(now())
+
+  @@unique([userId, target, targetId])
+  @@index([userId])
+}
+
+model ContentEvent {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId    String?
+  device      Device?  @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  contentType String? // 'pdf' | 'video'; null for device-level events (e.g. root_detected)
+  contentId   String? // null for device-level events
+  event       String // open/page/play/pause/heartbeat/complete/denied
+  meta        Json?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([contentId])
+}
+
+model LoginAttempt {
+  id                String   @id @default(cuid())
+  identifier        String // phone or email used at login
+  success           Boolean
+  ip                String?
+  deviceFingerprint String?
+  userId            String?
+  user              User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt         DateTime @default(now())
+
+  @@index([identifier, createdAt])
+  @@index([userId, createdAt])
+}
+
+model SecurityAlert {
+  id        String    @id @default(cuid())
+  type      AlertType @default(OTHER)
+  userId    String?
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  detail    Json?
+  seen      Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  @@index([seen, createdAt])
+}
+
+model Banner {
+  id        String   @id @default(cuid())
+  title     String
+  body      String?
+  imageKey  String?
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String? // null = broadcast to all users
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model AppSetting {
+  // Key-value store for app-wide settings managed from the admin panel.
+  // The Android app reads these in Stage 4 (security toggles, defaults).
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

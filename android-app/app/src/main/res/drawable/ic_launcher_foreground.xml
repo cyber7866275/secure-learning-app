@@ -1,0 +1,22 @@
+<!--
+  Launcher foreground: a simple shield + book glyph.
+  Solid fills only — no gradients, per project rule.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- shield -->
+    <path
+        android:fillColor="#0F766E"
+        android:pathData="M54,14 L86,26 V54 C86,76 72,90 54,98 C36,90 22,76 22,54 V26 Z" />
+    <!-- book pages cut-out -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M40,38 h28 v30 h-28 Z M40,42 h11 v22 h-11 Z M45,47 h6 v3 h-6 Z M45,53 h6 v3 h-6 Z M45,59 h6 v3 h-6 Z" />
+    <path
+        android:fillColor="#0F766E"
+        android:pathData="M55,42 h9 v22 h-9 Z M57,47 h5 v3 h-5 Z M57,53 h5 v3 h-5 Z M57,59 h5 v3 h-5 Z" />
+</vector>

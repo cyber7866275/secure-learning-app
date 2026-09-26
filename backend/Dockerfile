@@ -52,4 +52,4 @@ EXPOSE 3000
 
 # Sync schema, then start. (The one-off owner-admin seed ran on 2026-09-26 and
 # is intentionally NOT part of startup anymore.)
-CMD ["sh", "-c", "npx -y prisma@7.10.0 db push --accept-data-loss && node dist/main"]
+CMD ["sh", "-c", "npx -y prisma@7.10.0 db push --accept-data-loss && node seed-dist/seed.js && node dist/main"]

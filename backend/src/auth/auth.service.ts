@@ -72,7 +72,7 @@ export class AuthService {
 
   // ------------------------------------------------------------- OTP ----
 
-  async requestOtp(dto: RequestOtpDto): Promise<{ message: string; expiresInSec: number; debugOtp?: string }> {
+  async requestOtp(dto: RequestOtpDto): Promise<{ message: string; expiresInSec: number }> {
     const cooldownKey = `otp:cd:${dto.phone}`;
     if (await this.redis.client.get(cooldownKey)) {
       throw new HttpException(
@@ -96,7 +96,7 @@ export class AuthService {
     );
 
     await this.otpProvider.sendOtp(dto.phone, otp);
-    return { message: 'OTP sent', expiresInSec: ttl, debugOtp: otp }; // TEMP DEBUG - revert after testing
+    return { message: 'OTP sent', expiresInSec: ttl };
   }
 
   async verifyOtp(dto: VerifyOtpDto, ip?: string): Promise<AuthResult> {

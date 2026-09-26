@@ -3,12 +3,18 @@
 # Includes ffmpeg (video/HLS worker) and openssl (Prisma).
 
 
+
+
 FROM node:20-bookworm-slim AS builder
+
+
 
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     openssl ca-certificates python3 make g++ \
  && rm -rf /var/lib/apt/lists/*
+
+
 
 
 WORKDIR /app
@@ -24,8 +30,12 @@ RUN npm run build
 RUN npx tsc prisma/seed.ts --outDir seed-dist --module commonjs --target es2021 --esModuleInterop --skipLibCheck --moduleResolution node
 
 
+
+
 # ---- Runtime ----
 FROM node:20-bookworm-slim
+
+
 
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -33,8 +43,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 
+
+
 WORKDIR /app
 ENV NODE_ENV=production
+
+
 
 
 COPY package.json package-lock.json ./
@@ -46,10 +60,15 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/seed-dist ./seed-dist
 
 
+
+
 # Render (and most hosts) inject PORT. The app reads process.env.PORT.
 EXPOSE 3000
 
 
+
+
 # Sync schema, then start. (The one-off owner-admin seed ran on 2026-09-26 and
 # is intentionally NOT part of startup anymore.)
-CMD ["sh", "-c", "npx -y prisma@7.10.0 db push --accept-data-loss && node seed-dist/seed.js && node dist/main"]
+CMD ["sh", "-c", "npx -y prisma@7.10.0 db push --accept-data-loss && node dist/main"]
+
